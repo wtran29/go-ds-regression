@@ -38,10 +38,12 @@ func TrainLinearRegression(dataFrame dataframe.DataFrame, featureNames []string,
 	}
 
 	if !slices.Contains(columnNames, targetName) {
-		return nil, fmt.Errorf("target column '%s' not found in the dataset")
+		return nil, fmt.Errorf("target column '%s' not found in the dataset", targetName)
 	}
 
 	// extract features and target from the dataframe
+	var featureMatrix [][]float64 // Will hold all feature values (X)
+	var targetValues []float64    // Will hold all target values (y)
 
 	// get feature columns as float slices
 	featureColumns := make([]series.Series, len(featureNames))
@@ -53,8 +55,8 @@ func TrainLinearRegression(dataFrame dataframe.DataFrame, featureNames []string,
 	targetColumn := dataFrame.Col(targetName)
 
 	numSamples := dataFrame.Nrow()
-	featureMatrix := make([][]float64, numSamples)
-	targetValues := make([]float64, numSamples)
+	featureMatrix = make([][]float64, numSamples)
+	targetValues = make([]float64, numSamples)
 
 	// fill feature matrix (X) and target vector (Y) with values from the dataframe
 	for rowIndex := range numSamples {
@@ -69,6 +71,13 @@ func TrainLinearRegression(dataFrame dataframe.DataFrame, featureNames []string,
 	var normalizedFeatures [][]float64
 	var featureMeans []float64
 	var featureStdDevs []float64
+
+	// Normalize features if requested
+	// Normalization helps when features have different scales (like sq ft vs bedroom count)
+	// It transforms features to have mean 0 and standard deviation 1, which:
+	// - Makes different features comparable (e.g., sq.ft. vs. bedroom count)
+	// - Can improve numerical stability during training
+	// - Helps interpret relative importance of features
 	if normalize {
 		normalizedFeatures, featureMeans, featureStdDevs = utils.NormalizeFeatures(featureMatrix)
 		featureMatrix = normalizedFeatures
@@ -77,10 +86,17 @@ func TrainLinearRegression(dataFrame dataframe.DataFrame, featureNames []string,
 	// create a design matrix
 	numFeatures := len(featureNames)
 
+	// Create matrices for gonum linear algebra operations
+	// In matrix form, we want to solve: y = Xβ
+	// where:
+	// - y is the target vector
+	// - X is the design matrix (feature values with a column of 1s)
+	// - β is the coefficient vector (what we're solving for)
+	// Create matrices for gonum linear algebra operations
 	designMatrix := mat.NewDense(numSamples, numFeatures+1, nil)
 	targetVector := mat.NewVecDense(numSamples, nil)
 
-	for rowIndex := range numFeatures {
+	for rowIndex := range numSamples {
 		designMatrix.Set(rowIndex, 0, 1.0)
 		for featureIndex := range numFeatures {
 			designMatrix.Set(rowIndex, featureIndex+1, featureMatrix[rowIndex][featureIndex])
@@ -160,7 +176,7 @@ func (lr *LinearRegression) PrintModelSummary() {
 
 	// display model fit statistics
 	fmt.Printf("\nModel Performance:\n")
-	fmt.Printf("- R-squared: %.4f", lr.RSquared)
+	fmt.Printf("- R-squared: %.4f\n", lr.RSquared)
 	fmt.Printf("- Interpretation: %.2f%% of variance in %s is explained by theis model\n", lr.RSquared*100, lr.Target)
 
 	fmt.Printf("\nCoefficient Interpretation:\n")
