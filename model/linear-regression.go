@@ -28,6 +28,39 @@ type LinearRegression struct {
 	Version         string    `json:"version,omitempty"`
 }
 
+func (lr *LinearRegression) Predict(featureValues [][]float64) []float64 {
+	predictions := make([]float64, len(featureValues))
+
+	for dataPointIndex, featureRow := range featureValues {
+		// start with intercept
+		predictedValue := lr.Intercept
+
+		normalizedFeatures := make([]float64, len(featureRow))
+		copy(normalizedFeatures, featureRow)
+
+		if lr.IsNormalized && len(lr.FeatureMeans) == len(featureRow) {
+			for i := range normalizedFeatures {
+				if lr.FeaturesStdDevs[i] > 0 {
+					normalizedFeatures[i] = (featureRow[i] - lr.FeatureMeans[i]) /lr.FeaturesStdDevs[i]
+				} else {
+					normalizedFeatures[i] = 0
+				}
+			} 
+		}
+		// add contribution of each feature
+		for featureIndex, coefficient := range lr.Coefficients {
+			if lr.IsNormalized {
+				predictedValue += coefficient * normalizedFeatures[featureIndex]
+			} else {
+				predictedValue += coefficient * featureRow[featureIndex]
+			}
+		}
+
+		predictions[dataPointIndex] = predictedValue
+	}
+	return predictions
+}
+
 func TrainLinearRegression(dataFrame dataframe.DataFrame, featureNames []string, targetName string, normalize bool) (*LinearRegression, error) {
 	// check if all feature columns and target column exist
 	columnNames := dataFrame.Names()
@@ -177,13 +210,13 @@ func (lr *LinearRegression) PrintModelSummary() {
 	// display model fit statistics
 	fmt.Printf("\nModel Performance:\n")
 	fmt.Printf("- R-squared: %.4f\n", lr.RSquared)
-	fmt.Printf("- Interpretation: %.2f%% of variance in %s is explained by theis model\n", lr.RSquared*100, lr.Target)
+	fmt.Printf("- Interpretation: %.2f%% of variance in %s is explained by this model\n", lr.RSquared*100, lr.Target)
 
 	fmt.Printf("\nCoefficient Interpretation:\n")
 	fmt.Printf("- Intercept (%.4f): The base %s when all features are zero\n", lr.Intercept, lr.Target)
 
 	for i, feature := range lr.Features {
-		fmt.Printf("- %s Coefficient (%.4f): For each additional unit of %s, %s changesby %.4f units\n", feature, lr.Coefficients[i], feature, lr.Target, lr.Coefficients[i])
+		fmt.Printf("- %s Coefficient (%.4f): For each additional unit of %s, %s changes by %.4f units\n", feature, lr.Coefficients[i], feature, lr.Target, lr.Coefficients[i])
 	}
 
 	if lr.IsNormalized {
