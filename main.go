@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/wtran29/go-ds-regression/model"
 )
 
 func main() {
@@ -39,8 +41,15 @@ func main() {
 	logger.Info("Parsed command line flags:", "features", config.FeatureVars)
 
 	// Either load or train a model
-	_, _, err := getOrTrainModel(config, dataLogger)
+	dataModel, dataContext, err := getOrTrainModel(config, dataLogger)
 	if err != nil {
 		logger.Error(fmt.Sprintf("Model error: %v", err))
+	}
+
+	// save model if requested
+	if config.SaveModelPath != "" {
+		if err := model.SaveModelToJSON(dataModel, config.SaveModelPath, config.ModelDesc, dataContext.Data.Nrow()); err != nil {
+			logger.Error(fmt.Sprintf("Error saving model: %v", err))
+		}
 	}
 }
