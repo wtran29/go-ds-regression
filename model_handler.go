@@ -15,7 +15,12 @@ func getOrTrainModel(config Config, logger *slog.Logger) (*model.LinearRegressio
 
 	// application can either load a saved model or train a new one
 	if config.LoadModelPath != "" {
-		// TODO
+		// load an existing model from JSON file
+		dataModel, err = model.LoadModelFromJSON(config.LoadModelPath)
+		if err != nil {
+			return nil, nil, fmt.Errorf("error loading model: %v", err)
+		}
+		return dataModel, &dataContext, nil
 
 	}
 
